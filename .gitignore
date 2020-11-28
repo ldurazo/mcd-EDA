@@ -1,2 +1,4 @@
 kaggle.json
-data/
+data
+.idea
+.DS_STORE
