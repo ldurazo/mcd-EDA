@@ -1,24 +1,55 @@
 ---
-title: "R Notebook"
+title: "Exploratory data analysis - violence in the world and woman grand master likelihood."
 author: ldurazo
 date: 28/11/20
-output: html_notebook
+output: pdf_document
 ---
 
-The [R plugin](https://www.jetbrains.com/help/pycharm/r-plugin-support.html) for IntelliJ-based IDEs provides
-handy capabilities to work with the [R Markdown](https://www.jetbrains.com/help/pycharm/r-markdown.html) files.
-To [add](https://www.jetbrains.com/help/pycharm/r-markdown.html#add-code-chunk) a new R chunk,
-position the caret at any line or the code chunk, then click "+".
+In this project we are going to analyze to different set of data, and see what they tell us about the likelihood of a woman
+grandmaster chess appearing and how it relates to violence against women in said country, this will imply a huge amount of data
+cleaning and interpretation before arriving to a relevant correlation. We expect in advance and acknowledge that other variables such as economic variables per country may correlate more strongly to both violence and women grandmaster players.
 
-The code chunk appears:
+We may also use the term grandmaster interchangeably with just the women top player, this is both a practicality and an intentional way to recognize women in countries were grandmasters are less likely to appear but still have top ranked players.
+
+The next block is the setup script to load data, and setup this notebook utilities.
 ```{r}
+chooseCRANmirror(ind = 52)
+# EDA & Kaggle auth packages
+install.packages(c("summarytools", "explore", "dataMaid", "devtools", "configr", "rsconnect"))
+devtools::install_github("ldurazo/kaggler")
+
+#Library loading
+library(summarytools)
+library(explore)
+library(dataMaid)
+library(configr)
+library(readr)
+library(rsconnect)
+library(kaggler)
+
+# files downloading
+kgl_auth(creds_file = 'kaggle.json')
+
+response_violence <- kgl_datasets_download_all(owner_dataset = "andrewmvd/violence-against-women-and-girls")
+download.file(response_violence[["url"]], "data/violence_temp.zip", mode = "wb")
+unzipResult <- unzip("data/violence_temp.zip", exdir = "data/", overwrite = TRUE)
+violence_data <- read_csv("data/makeovermonday-2020w10/violence_data.csv")
+
+response_chessplayers <- kgl_datasets_download_all(owner_dataset = "vikasojha98/top-women-chess-players")
+download.file(response_chessplayers[["url"]], "data/chess_temp.zip", mode = "wb")
+unzipResult <- unzip("data/chess_temp.zip", exdir = "data/", overwrite = TRUE)
+chess_data <- read_csv("data/top_women_chess_players_aug_2020.csv")
 ```
 
-Type any R code in the chunk, for example:
+With these two files we can now see a summary of the data.
 ```{r}
-mycars <- within(mtcars, { cyl <- ordered(cyl) })
-mycars
+view(dfSummary(violence_data))
+view(dfSummary(chess_data))
 ```
 
-Now, click the **Run** button on the chunk toolbar to [execute](https://www.jetbrains.com/help/pycharm/r-markdown.html#run-r-code) the chunk code. The result should be placed under the chunk.
-Click the **Knit and Open Document** to built and preview an output.
+We will need  a file that maps the ISO-3166 country alpha 3 on the chess data, to the country name in violence data.
+
+```{r}
+download.file("https://raw.githubusercontent.com/lukes/ISO-3166-Countries-with-Regional-Codes/master/all/all.csv", "data/iso-3166")
+countries_mapping <- read_csv("data/iso-3166")
+```
