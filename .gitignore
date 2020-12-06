@@ -1,5 +1,7 @@
 kaggle.json
 shiny.json
 data
+!data/chess_aggregate_ds.csv
+!data/violence_chess_ds.csv.csv
 .idea
 .DS_STORE
