@@ -15,10 +15,10 @@ The next block is the setup script to load data, and setup this notebook utiliti
 ```{r}
 chooseCRANmirror(ind = 52)
 # EDA & Kaggle auth packages
-install.packages(c("summarytools", "explore", "dataMaid", "devtools", "configr", "rsconnect"))
+install.packages(c("summarytools", "explore", "dataMaid", "devtools", "configr", "rsconnect", "dplyr"))
 devtools::install_github("ldurazo/kaggler")
 
-#Library loading
+library(dplyr)
 library(summarytools)
 library(explore)
 library(dataMaid)
@@ -41,10 +41,14 @@ unzipResult <- unzip("data/chess_temp.zip", exdir = "data/", overwrite = TRUE)
 chess_data <- read_csv("data/top_women_chess_players_aug_2020.csv")
 ```
 
-With these two files we can now see a summary of the data.
+With these two files we can now see a summary of the data. Note that these two are html generated files available if you run this notebook.
+Alternatively, the explore package returns interesting results in a shiny app, turn the following statements on if you want to see the data.
 ```{r}
-view(dfSummary(violence_data))
-view(dfSummary(chess_data))
+#dfSummary(violence_data, file = "data/violence_data_summary.html")
+#dfSummary(chess_data, file = "data/violence_data_summary.html")
+
+#explore(chess_data)
+#explore(violence_data)
 ```
 
 We will need  a file that maps the ISO-3166 country alpha 3 on the chess data, to the country name in violence data.
@@ -52,4 +56,98 @@ We will need  a file that maps the ISO-3166 country alpha 3 on the chess data, t
 ```{r}
 download.file("https://raw.githubusercontent.com/lukes/ISO-3166-Countries-with-Regional-Codes/master/all/all.csv", "data/iso-3166")
 countries_mapping <- read_csv("data/iso-3166")
+countries_mapping <- setNames(select(countries_mapping, "name", "alpha-3"), c("name", "code"))
 ```
+Let's clean up our data by removing the NA values and transforming the percentage to a number.
+
+```{r}
+violence_data <- na.omit(violence_data, "Value")
+violence_data$Value <- as.numeric(sub("%", "", violence_data$Value))
+```
+
+Now I want to create an aggregate of the data of my first data set of violence against women, and generate a weighted mean out of the results between men and women answering, so that I can effectively create a "violence score" per country, in a very subjective way. There are a number of better techniques to do such a process, but only for the sake of the excercise we will use this score formula.
+
+```{r}
+violence_data$WeightedValue <- ifelse(violence_data$Gender == "F", violence_data$Value * 0.7, violence_data$Value * 0.3)
+violence_data_slim <- select(violence_data, "Country", "WeightedValue")
+violence_data_slim_grouped <- setNames(aggregate(violence_data_slim$WeightedValue, by = list(violence_data_slim$Country), FUN = mean), c("Country", "Score"))
+
+head(violence_data_slim_grouped)
+```
+With the score per country done, we need to do similar work with the chess players data frame.
+```{r}
+chess_data <- na.omit(chess_data, "Standard_Rating", "Rapid_rating", "Blitz_rating")
+chess_data_slim <- select(chess_data, "Federation", "Standard_Rating", "Rapid_rating", "Blitz_rating")
+chess_data_slim_grouped <- chess_data_slim %>%
+  group_by(chess_data_slim$Federation) %>%
+  summarise(across(ends_with("rating"), list(mean = mean, n = length, max = max, min = min)))
+head(chess_data_slim_grouped)
+```
+Now, we need to join the tables with the countries table in order to finally obtain a single dataset.
+
+```{r}
+violence_df <- left_join(violence_data_slim_grouped, countries_mapping, by = c("Country" = "name"))
+violence_df %>% arrange(!is.na(violence_df$code))
+head(violence_df)
+```
+Notice that we have a few exemptions where the mapping did not occur correctly, in this instance we will fix them by hand.
+    - Bolivia
+    - Congo Democratic Republic
+    - Cote d'Ivoire
+    - Kyrgyz Republic
+    - Moldova
+    - Tanzania
+
+```{r}
+violence_df <- within(violence_df, code[Country == "Bolivia"] <- "BOL")
+violence_df <- within(violence_df, code[Country == "Congo Democratic Republic"] <- "COD")
+violence_df <- within(violence_df, code[Country == "Cote d'Ivoire"] <- "CIV")
+violence_df <- within(violence_df, code[Country == "Kyrgyz Republic"] <- "KGZ")
+violence_df <- within(violence_df, code[Country == "Moldova"] <- "MDA")
+violence_df <- within(violence_df, code[Country == "Tanzania"] <- "TZA")
+violence_df %>% arrange(!is.na(violence_df$code))
+head(violence_df)
+```
+
+Now, assuming the FIDE and ISO-3166 codes are the same, let's see how the joined data looks like. Because the countries that have women chess players may not intersect with the countries visited for questionnaire in the violence dataset, I expect plenty of this missed intersections to have NA values. For this analysis we will pay closer attention to the violence score aggregation, and see which countries have top chess players rather than joining all countries in the FIDE and ignore violence score for countries that do not have chess players.
+
+```{r}
+merged_df <- left_join(violence_df, chess_data_slim_grouped, by = c("code" = "chess_data_slim$Federation"))
+merged_df %>% arrange(desc(merged_df$Score))
+head(merged_df)
+```
+The generated output is very small due to a very small intersection between interviewed countries and top women chess players, but we will still attempt to see correlation between the violence index and the rating, and number, of players.
+
+But first, a little data visualization.
+```{r}
+plot(merged_df$Score, merged_df$Standard_Rating_n)
+plot(merged_df$Score, merged_df$Standard_Rating_mean)
+```
+Now, let's see the correlation values.
+```{r}
+merged_df_no_na <- na.omit(merged_df)
+print(cor(merged_df_no_na$Score, merged_df_no_na$Standard_Rating_n))
+print(cor(merged_df_no_na$Score, merged_df_no_na$Standard_Rating_mean))
+print(cor(merged_df_no_na$Score, merged_df_no_na$Rapid_rating_mean))
+print(cor(merged_df_no_na$Score, merged_df_no_na$Blitz_rating_mean))
+```
+From the previous result we see two interesting observations after peaking into the aggregated data:
+
+- 1) Because the tiny size of the sample, the correlation between the violence score and the number of players is meaningless.
+- 2) there is a moderate negative correlation between the violence score and the rating of players on all three categories, that means that as the violence index increases, there is an apparent negative impact into how well the players of that country perform.
+
+Now we will create a dataset out of our aggregated data.
+
+```{r}
+write.csv(merged_df,"data/export.csv", row.names = TRUE)
+```
+
+Before wrapping up, let's create a data report of our dataset
+
+```{r}
+makeDataReport(merged_df,
+               render = FALSE,
+               file = "data_report.Rmd",
+               replace = TRUE)
+```
+
