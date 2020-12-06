@@ -139,7 +139,8 @@ From the previous result we see two interesting observations after peaking into 
 Now we will create a dataset out of our aggregated data.
 
 ```{r}
-write.csv(merged_df,"data/export.csv", row.names = TRUE)
+write.csv(merged_df,"data/violence_chess_ds.csv", row.names = TRUE)
+write.csv(chess_data_slim_grouped,"data/chess_aggregate_ds.csv", row.names = TRUE)
 ```
 
 Before wrapping up, let's create a data report of our dataset
@@ -147,7 +148,9 @@ Before wrapping up, let's create a data report of our dataset
 ```{r}
 makeDataReport(merged_df,
                render = FALSE,
-               file = "data_report.Rmd",
-               replace = TRUE)
+               file = "codebook.Rmd",
+               codebook = TRUE,
+               replace = TRUE,
+               reportTitle = "Violence index and women chess players across the world")
 ```
 
