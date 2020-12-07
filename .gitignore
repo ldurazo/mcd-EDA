@@ -6,3 +6,4 @@ data/*
 !data/violence_chess_ds.csv
 .idea
 .DS_STORE
+rsconnect/*

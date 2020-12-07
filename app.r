@@ -1,7 +1,7 @@
-#chooseCRANmirror(ind = 52)
-
 #comment package installation when deploying
+#chooseCRANmirror(ind = 52)
 #install.packages(c("rsconnect", "configr", "ggplot2", "shiny"))
+
 library(rsconnect)
 library(configr)
 library(ggplot2)
@@ -81,7 +81,6 @@ server <- function(input, output) {
   })
 }
 
-# Run the app ---- Comment when deploying.
-#shinyApp(ui = ui, server = server)
+shinyApp(ui = ui, server = server)
 
-deployApp()
+# Run with deployApp() on terminal
