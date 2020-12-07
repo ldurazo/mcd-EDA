@@ -1,7 +1,7 @@
 ### Violence against women and top women chess players in developing countries
 
 Please refer to `main.rmd` file to see all instructions to play and see the exploratory data analysis. A pdf version
-has been generated in the homonimous file of pdf extension.
+has been generated in the homonymous file of pdf extension.
 
 To obtain the tidy data set, execute all chunks in the R markdown file. Alternatively, the outputs have been excluded from
 .gitignore for a limited time.
