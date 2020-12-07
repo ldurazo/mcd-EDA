@@ -1,3 +1,5 @@
+Please refer to the following github repository: https://github.com/ldurazo/mcd-EDA
+
 ### Violence against women and top women chess players in developing countries
 
 Please refer to `main.rmd` file to see all instructions to play and see the exploratory data analysis. A pdf version
